@@ -79,6 +79,7 @@ void help(char *argv[]) {
     fprintf(stderr, "\n \n Usage: %s  <options> <input_image> \n \n", argv[0]);
 	fprintf( stderr,
 			" options: \n \n"
+			" -h   show this message \n"
 			" -n    sets natural luminance uses the CIE standard values for percieved luminance \n"
 			" -g <number(float)>  sets a custum gamma, 1.8 seems to be about right\n"
 			" -x set custom width value for the image \n"
@@ -106,8 +107,11 @@ int main(int argc, char *argv[]) {
 	int opt;
 
 
-while ((opt = getopt(argc, argv, "ng:x:y:fc:o:")) != -1) {
+while ((opt = getopt(argc, argv, "hng:x:y:fc:o:")) != -1) {
 	switch (opt) {
+			case 'h':
+				help(argv);
+				return 1;
             case 'n':
                 natural = true;
                 break;
