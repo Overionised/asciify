@@ -2,21 +2,20 @@
 
 ## Build
 ***works on linux and maybe osx***
-
 ***windows users use wsl***
 
 ### option 1 temporary install
 ~~~ shell
 git clone https://github.com/Overionised/asciify
 cd asciify
-gcc main.c -lm
+gcc main.c -lm -o asciify
 ~~~
 
 ### option 2 permanent install
 ~~~ shell
 git clone https://github.com/Overionised/asciify
 cd asciify
-gcc main.c -lm
+gcc main.c -lm -o asciify
 sudo cp asciify /usr/bin/
 ~~~
 ## Usage:
