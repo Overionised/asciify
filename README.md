@@ -1,8 +1,9 @@
 
 
 ## Build
-***works on linux and maybe osx
-***windows users use wsl
+***works on linux and maybe osx***
+
+***windows users use wsl***
 
 ### option 1 temporary install
 ~~~ shell
