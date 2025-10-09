@@ -1,12 +1,14 @@
 #define STB_IMAGE_IMPLEMENTATION
-         #define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define malpic(p, i, j, c) (p[((j) * (x+1) + (i)) * 3 + (c)])
 
 #include "libs/stb_image.h"
+#include "libs/stb_image_resize2.h"
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <stdio.h>
 
@@ -79,8 +81,10 @@ void help(char *argv[]) {
 			" options: \n \n"
 			" -n    sets natural luminance uses the CIE standard values for percieved luminance \n"
 			" -g <number(float)>  sets a custum gamma, 1.8 seems to be about right\n"
-			" -r <1-100> resize image by 1-100 percent \n"
-			" -c < .:-=+*#%@> set a custom character set size of 10 use _ in place of <space>"
+			" -x set custom width value for the image \n"
+			" -y set a custom height value for the image \n "
+			" -f keep the original image resolution (this will result in a massive ascii wall) \n"
+			" -c < .:-=+*#%@> set a custom character set size of 10 use _ in place of <space> \n"
 			" -o <name_of_output_file.txt>  ( by default image is printed to terminal) \n>"
 
 	);
@@ -88,19 +92,22 @@ void help(char *argv[]) {
 
 int main(int argc, char *argv[]) {
 
-	static int x,y;
+	int x,y;
 	static int n;
+	int output_h, output_w;
 	bool natural = false;
 	bool custom_gamma = false;
 	bool output_file = false;
+	bool resize = true;
+	bool custom_resize =false;
 	float gamma = 2.2f;
 	char *charset = " .:-=+*#%@";
 	char *filename = NULL;
 	int opt;
 
 
-	while ((opt = getopt(argc, argv, "ng:c:o:")) != -1) {
-        switch (opt) {
+while ((opt = getopt(argc, argv, "ng:x:y:fc:o:")) != -1) {
+	switch (opt) {
             case 'n':
                 natural = true;
                 break;
@@ -112,6 +119,27 @@ int main(int argc, char *argv[]) {
 				output_file = true;
                 filename = optarg;
                 break;
+
+			case 'x':
+				custom_resize = true;
+				output_w = atoi(optarg);  // convert string to int
+				if (output_w <= 0) {
+					fprintf(stderr, "Error: custom width must be a positive integer.\n");
+					return 1;
+				}
+				break;
+			case 'y':
+				custom_resize = true;
+				output_h = atoi(optarg);
+				if (output_h <= 0) {
+					fprintf(stderr, "Error: custom height must be a positive integer.\n");
+					return 1;
+				}
+				break;
+			case 'f':
+				resize=false;
+				break;
+
 			case 'c':
 				if (strlen(optarg) == 10) {  // Validate length
                     charset = optarg;
@@ -147,6 +175,25 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	if (!custom_resize) {
+    output_w = 100;
+    output_h = (int)ceilf((float)output_w * (float)y / (float)x);  // preserve aspect ratio
+}
+		//lets check for resizing first
+
+		unsigned char *resized_data = malloc((size_t)output_w * (size_t)output_h * 3u);
+
+	if (resize){
+		stbir_resize_uint8_srgb(
+			data, x, y, x * 3,           // input
+			resized_data, output_w, output_h, output_w * 3, 3  // output
+		);
+		stbi_image_free(data);
+		data = resized_data;
+		x = output_w; y = output_h;
+
+	}
+
 	//declare rest
 	int idx;
 	int *pixel = malloc((x+1) * (y+1) * 3 * sizeof(int));		//we use malloc to avoid stack overflow
@@ -156,12 +203,14 @@ int main(int argc, char *argv[]) {
 		lumi[i] = malloc((y+1) * sizeof(float));  // each pointer gets a row of y+1 floats
 	}
 
-	
+
+
+
 	//convert data into something usable we start indexing from 1 because i am not insane
 	//we put debug values into [0][0][0] specically the image size in total so pretty much the [x] [y] [3]
 	malpic(pixel, 0, 1, 0) = x;
 	malpic(pixel, 1, 0, 0) = y;
-	malpic(pixel, 0, 0, 1) = 3; 
+	malpic(pixel, 0, 0, 1) = 3;
 	for (int j = 1; j <= y; j++) {
     		for (int i = 1; i <= x; i++) {
         		idx = ((j-1) * x + (i-1)) * 3;
@@ -169,16 +218,16 @@ int main(int argc, char *argv[]) {
         		malpic(pixel, i, j, 1)  = data[idx + 1]; // G
         		malpic(pixel, i, j, 2)  = data[idx + 2]; // B
     		}
-	}	
+	}
 
 	//now i convert it into an array of luminance values lumi[x][x] = luminance.
 	//for that we use a linear function to first conver into linear values (i dont know either but stack overflow said so)
-	
+
 	//first lets get the debug
 	malpic(linpixel, 0, 1, 0) = x;
 	malpic(linpixel, 1, 0, 0) = y;
-	malpic(linpixel, 0, 0, 1) = 3; 
-	
+	malpic(linpixel, 0, 0, 1) = 3;
+
 	for (int j = 1; j <= y; j++) {
     		for (int i = 1; i <= x; i++) {
 				malpic(linpixel, i, j, 0) = makelin( malpic(pixel, i, j, 0) / 255.0f);
@@ -188,7 +237,7 @@ int main(int argc, char *argv[]) {
 		}
 		//so basically this is the linear values for each pixel. now we need to convert that into luminescense
 		// Y = (0.2126 * sRGBtoLin(vR) + 0.7152 * sRGBtoLin(vG) + 0.0722 * sRGBtoLin(vB)) <- this is the equation for that in pseudo
-		
+
 			for (int j = 1; j <= y; j++) {
 				for (int i = 1; i <= x; i++) {
 					lumi[i][j] = ((0.2126 * malpic(linpixel, i, j, 0) + 0.7152 * malpic(linpixel, i, j, 1) + 0.0722 * malpic(linpixel, i, j, 2)) * 100);
@@ -224,6 +273,6 @@ int main(int argc, char *argv[]) {
 		for (int i = 0; i <= x; i++) free(lumi[i]);
 		free(lumi);
 
-        		
+
 	return 0;
 }
