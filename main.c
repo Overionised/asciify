@@ -20,6 +20,10 @@ float makelin(float c) {
     }
 }
 
+float invertf(float Y, bool n) {
+	return abs(100-Y);
+}
+
 float g_makeperlumi(float Y, float gamma) {
     // Simple gamma correction (gamma = 2.2)
 	Y = Y / 100.0f; //normalise values back
@@ -109,12 +113,13 @@ void outfile(char *filename, int x, int y, float **lumi, char *charset, bool wid
 void help(char *argv[]) {
     fprintf(stderr, "\n \n Usage: %s  <options> <input_image> \n \n", argv[0]);
 	fprintf( stderr,
-			" options: \n \n"
-			" -h   show this message \n"
-			" -n    sets natural luminance uses the CIE standard values for percieved luminance \n"
+			"options: \n \n"
+			" -h show this message \n"
+			" -n sets natural luminance uses the CIE standard values for percieved luminance \n"
 			" -g <number(float)>  sets a custum gamma, 1.8 seems to be about right\n"
+			" -v invert the black and white. by default more characters = more light. \n"
 			" -x set custom width value for the image \n"
-			" -y set a custom height value for the image \n "
+			" -y set a custom height value for the image \n"
 			" -f keep the original image resolution (this will result in a massive ascii wall) \n"
 			" -w characters have a strange tendacy to strech, this counteracts that bit of a band-aid solution\n"
 			" -c < .:-=+*#%@> set a custom character set size of 10 use _ in place of <space> \n"
@@ -134,13 +139,14 @@ int main(int argc, char *argv[]) {
 	bool resize = true;
 	bool custom_resize =false;
 	bool wide = false;
+	bool invert = false;
 	float gamma = 2.2f;
 	char *charset = " .:-=+*#%@";
 	char *filename = NULL;
 	int opt;
 
 
-while ((opt = getopt(argc, argv, ":h:ng:x:y:wfc:o:")) != -1) {
+while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
 	switch (opt) {
 			case 'h':
 				help(argv);
@@ -188,6 +194,9 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfc:o:")) != -1) {
 							charset[i] = ' ';
 						}
 					}
+			case 'v':
+				invert = true;
+				break;
 
                 } else {
                     fprintf(stderr, "Error: character set must be exactly 10 characters, use _ instead of space\n");
@@ -277,7 +286,12 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfc:o:")) != -1) {
 			}
 		}
 		//so basically this is the linear values for each pixel. now we need to convert that into luminescense
-		// Y = (0.2126 * sRGBtoLin(vR) + 0.7152 * sRGBtoLin(vG) + 0.0722 * sRGBtoLin(vB)) <- this is the equation for that in pseudo
+		// Y = (0.2126 * sRGBtoLin(vR) + 0.7152 * sRGBtoLin(vG) + 0.0722 * sRGBtoLin(vB)) <- this is the equation for that in pseudofor (int j = 1; j <= y; j++) {
+			for (int j = 1; j <= y; j++) {
+					for (int i = 1; i <= x; i++) {
+						lumi[i][j] = g_makeperlumi(lumi[i][j], gamma);
+					}
+			}
 
 			for (int j = 1; j <= y; j++) {
 				for (int i = 1; i <= x; i++) {
@@ -285,6 +299,14 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfc:o:")) != -1) {
 					}
 			}
 
+			//we check for the invert option and invert the tones if need be
+			if(invert){
+				for (int j = 1; j <= y; j++) {
+					for (int i = 1; i <= x; i++) {
+						lumi[i][j] = invertf(lumi[i][j], invert);
+						}
+				}
+			}
 	//now we try and get the perceptual values. our eyes do not percieve stuff in a linear way this is optional
 			if (natural){
 				for (int j = 1; j <= y; j++) {
