@@ -25,7 +25,7 @@ sudo cp asciify /usr/bin/
 
  asciify  <options> <input_image>
 
-			options:  
+options:  
 			 -h show this message 
 			 -n sets natural luminance uses the CIE standard values for percieved luminance 
 			 -g <number(float)>  sets a custum gamma, 1.8 seems to be about right
@@ -33,7 +33,7 @@ sudo cp asciify /usr/bin/
 			 -x set custom width value for the image 
 			 -y set a custom height value for the image 
 			 -f keep the original image resolution (this will result in a massive ascii wall) 
-			 -w characters have a strange tendacy to strech, this counteracts that bit of a band-aid solution
+			 -w characters have a strange tendacy to strech, this is by default mitegated by streching the image. -w will turn the option off
 			 -c < .:-=+*#%@> set a custom character set size of 10 use _ in place of <space> 
 			 -o <name_of_output_file.txt>  ( by default image is printed to terminal) >
 ~~~
