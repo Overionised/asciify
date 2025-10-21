@@ -39,23 +39,7 @@ float n_makeperlumi(float Y) {
     }
 }
 
-void outterm( int x, int y, float **lumi, char *charset, bool wide){
-
-	if(wide){
-		for (int j = 1; j <= y; j++) {
-			for (int i = 1; i <= x; i++) {
-				int index = (int)(lumi[i][j] / 10.0f);
-				if (index > 9) index = 9;  // Cap at 9 (valid indices: 0-9)
-				if (index < 0) index = 0;
-
-				// Use %c for single character, not %s
-				printf( "%c ", charset[index]);
-			}
-			printf("\n");
-		}
-	}
-
-	else{
+void outterm( int x, int y, float **lumi, char *charset){
 		for (int j = 1; j <= y; j++) {
 			for (int i = 1; i <= x; i++) {
 				int index = (int)(lumi[i][j] / 10.0f);
@@ -67,32 +51,17 @@ void outterm( int x, int y, float **lumi, char *charset, bool wide){
 			}
 			printf("\n");
 		}
-	}
 
 }
 
 
-void outfile(char *filename, int x, int y, float **lumi, char *charset, bool wide){
+void outfile(char *filename, int x, int y, float **lumi, char *charset){
     FILE *fptr;
     fptr = fopen(filename, "w");
     if (!fptr) {
         fprintf(stderr, "Error: Could not open file %s\n", filename);
         return;
     }
-    if (wide){
-		for (int j = 1; j <= y; j++) {
-        for (int i = 1; i <= x; i++) {
-            int index = (int)(lumi[i][j] / 10.0f);
-            if (index > 9) index = 9;  // Cap at 9 (valid indices: 0-9)
-            if (index < 0) index = 0;
-
-            // Use %c for single character, not %s
-            fprintf(fptr, "%c ", charset[index]);
-        }
-        fprintf(fptr, "\n");
-		}
-	}
-
     else{
 		for (int j = 1; j <= y; j++) {
 			for (int i = 1; i <= x; i++) {
@@ -121,7 +90,7 @@ void help(char *argv[]) {
 			" -x set custom width value for the image \n"
 			" -y set a custom height value for the image \n"
 			" -f keep the original image resolution (this will result in a massive ascii wall) \n"
-			" -w characters have a strange tendacy to strech, this counteracts that bit of a band-aid solution\n"
+			" -w characters have a strange tendacy to strech, this is by default mitegated by streching the image. -w will turn the option off\n"
 			" -c < .:-=+*#%@> set a custom character set size of 10 use _ in place of <space> \n"
 			" -o <name_of_output_file.txt>  ( by default image is printed to terminal) \n>"
 
@@ -132,21 +101,22 @@ int main(int argc, char *argv[]) {
 
 	int x,y;
 	static int n;
+	int opt;
 	int output_h, output_w;
+	float widemod = 1.7;
+	int basepixels = 50;
 	bool natural = false;
 	bool custom_gamma = false;
 	bool output_file = false;
 	bool resize = true;
 	bool custom_resize =false;
-	bool wide = false;
 	bool invert = false;
 	float gamma = 2.2f;
 	char *charset = " .:-=+*#%@";
 	char *filename = NULL;
-	int opt;
 
 
-while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
+while ((opt = getopt(argc, argv, ":hng:x:y:wfvc:o:")) != -1) {
 	switch (opt) {
 			case 'h':
 				help(argv);
@@ -163,7 +133,7 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
                 filename = optarg;
                 break;
 			case 'w':
-				wide = true;
+				widemod = 1;
 				break;
 
 			case 'x':
@@ -194,6 +164,8 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
 							charset[i] = ' ';
 						}
 					}
+				break;
+
 			case 'v':
 				invert = true;
 				break;
@@ -226,14 +198,16 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
 	}
 
 	if (!custom_resize) {
-    output_w = 100;
-    output_h = (int)ceilf((float)output_w * (float)y / (float)x);  // preserve aspect ratio
+    output_w = basepixels * (float)widemod;
+    output_h = (int)ceilf(((float)output_w/(float)widemod) * (float)y / (float)x);  // preserve aspect ratio
 }
 		//lets check for resizing first
 
 		unsigned char *resized_data = malloc((size_t)output_w * (size_t)output_h * 3u);
 
 	if (resize){
+
+		//cause of the custom output we will change the output w here
 		stbir_resize_uint8_srgb(
 			data, x, y, x * 3,           // input
 			resized_data, output_w, output_h, output_w * 3, 3  // output
@@ -324,10 +298,10 @@ while ((opt = getopt(argc, argv, ":h:ng:x:y:wfvci:o:")) != -1) {
 			}
 
 		if(output_file){
-			outfile( filename ,x, y, lumi, charset, wide);
+			outfile( filename ,x, y, lumi, charset);
 		}
 		else{
-			outterm( x, y, lumi, charset, wide);
+			outterm( x, y, lumi, charset);
 		}
 
 		stbi_image_free(data);
